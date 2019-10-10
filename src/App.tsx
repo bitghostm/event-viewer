@@ -13,8 +13,8 @@ const App: React.FC = () => {
         </header>
         <section>
           <Route path="/" exact component={SessionList} />
-          <Route path="/session/list" component={SessionList} />
-          <Route path="/session/:id/" component={SessionDetail} />
+          <Route path="/session/list" exact component={SessionList} />
+          <Route path="/session/:id/" exact component={SessionDetail} />
         </section>
       </Router>
     </div>

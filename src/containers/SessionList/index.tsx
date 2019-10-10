@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import jsonp from 'jsonp';
-
 import Table from '@material-ui/core/Table';
 import { makeStyles } from '@material-ui/core/styles';
 import Paper from '@material-ui/core/Paper';
 import TableBody from '@material-ui/core/TableBody';
 import TableCell from '@material-ui/core/TableCell';
 import TableHead from '@material-ui/core/TableHead';
+import TablePagination from '@material-ui/core/TablePagination';
 import TableRow from '@material-ui/core/TableRow';
-
-const baseUrl = 'https://demo1-webservice.eventbase.com/v4/admin/events/frontendcodechallenge/sessions';
-const auth = '?api=cc1-0befd4410327ac7b8c7f88e4ed466e87d6f78eff29de81c3ee4e28d79b604eb2-0c75664d5c8211b4395e7f766a415a25827c7cf2';
+import { BrowserRouter as Router, Route, Link } from "react-router-dom";
+import { request } from '../../utils/api';
+import 'react-day-picker/lib/style.css';
 
 const useStyles = makeStyles({
   root: {
@@ -19,49 +18,114 @@ const useStyles = makeStyles({
   tableWrapper: {
     overflow: 'auto',
   },
+  header: {
+    backgroundColor: '#fff',
+  },
+  columnText: {
+    color: '#263238',
+  }
 });
+
+const dateRangePickerStyle = {
+  margin: '10px',
+  backgroundColor: '#fff',
+};
+const divider = {
+  marginTop: '50px',
+}
+
+
+interface EventData {
+  id: string;
+  name: string;
+  description: string;
+  time_start: string;
+  time_stop: string;
+}
+
+interface SessionsResult {
+  data: EventData[];
+  meta: { total: number };
+}
+
+interface SearchOptions {
+  page: number;
+  rowsPerPage: number;
+  text?: string;
+  from?: string;
+  until?: string;
+}
+
+const columns: Array<{ name: keyof EventData, label: string }> = [{
+  name: 'name',
+  label: 'Name',
+}, {
+  name: 'description',
+  label: 'Description',
+}, {
+  name: 'time_start',
+  label: 'Time Start',
+}, {
+  name: 'time_stop',
+  label: 'Time Stop',
+}]
 
 const SessionList: React.FC = () => {
   const classes = useStyles();
 
-  const [sessions, setSessions] = useState([]);
+  const [sessions, setSessions] = useState({ data: [], meta: { total: 0 } } as SessionsResult);
+  const [status, setStatus] = useState({ loading: false, error: null });
+  const [searchOptions, setSearchOptions] = React.useState({ page: 0, rowsPerPage: 10 } as SearchOptions);
+  const [searchText, setSearchText] = useState();
+
   useEffect(() => {
-    const fetchData = async () => {
-      jsonp(baseUrl+auth, (err, data) => {
-        if(err) {
-          console.log(err);
-        } else {
-          setSessions(data.data);
-        }
-      });
-    }
+    const query = {
+      page: searchOptions.page,
+      per_page: searchOptions.rowsPerPage,
+      search: searchOptions.text,
+    };
+    console.log(query);
+    setStatus({ loading: true, error: null });
+    request('/sessions', query, (error, data) => {
+      if(error) {
+        setStatus({ loading: false, error });
+      } else {
+        setStatus({ loading: false, error: null });
+        setSessions(data);
+      }
+    });
+  }, [searchOptions]);
 
-    fetchData();
-  }, [])
+  const onSearchClick = (event: any) => {
 
-  const [page, setPage] = React.useState(0);
-  const [rowsPerPage, setRowsPerPage] = React.useState(10);
+    setSearchOptions({ ...searchOptions, text: searchText});
+    event.preventDefault();
+  }
 
-  const columns = [{
-    name: 'name',
-    label: 'Name',
-  }, {
-    name: 'description',
-    label: 'Description',
-  }, {
-    name: 'time_start',
-    label: 'Time Start',
-  }, {
-    name: 'time_stop',
-    label: 'Time Stop',
-  }]
+  if(status.loading) {
+    return <h1>Loading</h1>
+  }
+
+  if(status.error) {
+    return <div>{status.error}</div>
+  }
+
   return (
-    <>
+    <>       
+      <form onSubmit={onSearchClick}>
+        <label>
+          Name:
+          <input type="text" value={searchText} onChange={(event) => setSearchText(event.target.value)} />
+        </label>
+        <input style={{margin: '10px'}} type="submit" value="Search" />
+      </form>
+          
+      <div style={divider}></div>
       <Paper className={classes.root}>
       <div className={classes.tableWrapper}>
-        <Table stickyHeader>
-          <TableHead>
-            <TableRow>
+        <Table>
+          <TableHead className={classes.header}>
+            <TableRow > 
               {columns.map(col => (
                 <TableCell>
                   {col.label}
@@ -70,14 +134,16 @@ const SessionList: React.FC = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {sessions.map(session => {
+            {sessions.data.map((session) => {
               return (
                 <TableRow tabIndex={-1}>
                   {columns.map(column => {
                     const value = session[column.name];
                       return (
-                        <TableCell >
-                          {value}
+                        <TableCell>
+                          {column.name === 'name'
+                            ? <Link className={classes.columnText} to={`/session/${session.id}`}>{value}</Link>
+                            : value}
                         </TableCell>
                       );
                   })}
@@ -86,6 +152,21 @@ const SessionList: React.FC = () => {
           </TableBody>
         </Table>
       </div>
+      <TablePagination
+        rowsPerPageOptions={[10, 25, 100]}
+        component="div"
+        count={sessions.meta.total}
+        rowsPerPage={searchOptions.rowsPerPage}
+        page={searchOptions.page}
+        backIconButtonProps={{
+          'aria-label': 'previous page',
+        }}
+        nextIconButtonProps={{
+          'aria-label': 'next page',
+        }}
+        onChangePage={(event, page) => setSearchOptions({ ...searchOptions, page })}
+        onChangeRowsPerPage={(event) => setSearchOptions({ ...searchOptions, rowsPerPage: parseInt(event.target.value, 10) })}
+      />
     </Paper>
     </>
   );
