@@ -9,7 +9,6 @@ import TablePagination from '@material-ui/core/TablePagination';
 import TableRow from '@material-ui/core/TableRow';
 import { BrowserRouter as Router, Route, Link } from "react-router-dom";
 import { request } from '../../utils/api';
-import 'react-day-picker/lib/style.css';
 
 const useStyles = makeStyles({
   root: {
